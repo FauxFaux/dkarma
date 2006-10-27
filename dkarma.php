@@ -1,4 +1,16 @@
 <?
+$cache_table = '_dkarma_cache';
+
+$flood = @$_GET{'flood'};
+if ($flood == 0) $flood = 900;
+
+function gencache()
+{
+	global $cache_table;
+	mysql_query('DROP TABLE IF EXISTS ' . $cache_table);
+	mysql_query('CREATE TABLE ' . $cache_table . ' AS SELECT `Nick`,`Text`,`Time` from `History` where `Text` LIKE "%++%" OR `Text` LIKE "%--%"');
+	echo mysql_error();
+}
 
 // Karma.java
 
@@ -35,11 +47,42 @@
 
 // </Karma.java>
 
+// Crushed from http://www.entropy.ch/software/macosx/php/button-image.phps
+function hsv2rgb($h, $s, $v)
+{
+	$h %= 360;
+
+	$h /= 60;
+	$i = floor($h);
+	$f = $h - $i;
+	$p = $v * (1 - $s);
+	$q = $v * (1 - $s * $f);
+	$t = $v * (1 - $s * (1 - $f));
+
+	switch($i)
+	{
+		case 0: $r = $v; $g = $t; $b = $p; break;
+		case 1: $r = $q; $g = $v; $b = $p; break;
+		case 2: $r = $p; $g = $v; $b = $t; break;
+		case 3: $r = $p; $g = $q; $b = $v; break;
+		case 4: $r = $t; $g = $p; $b = $v; break;
+		default: $r = $v; $g = $p; $b = $q; break;
+	}
+
+	return array($r * 255, $g * 255, $b * 255);
+}
+
+// Lalalal, log sucks.
 function numlen($num)
 {
-	if ($num == 0)
-		return 1;
-	return ((int)log(abs($num))) + ($num < 0 ? 1 : 0);
+	$a = abs($num);
+	$sign = $num < 0 ? 1 : 0;
+	if ($a<10)
+		return 1 + $sign;
+	if ($a<100)
+		return 2 + $sign;
+
+	return 3 + $sign;
 }
 
 function nicklink($nick)
@@ -52,9 +95,29 @@ function nicklink($nick)
 mysql_connect('localhost', 'choob', 'ponies') or die('Could not connect: ' . mysql_error());
 
 mysql_select_db('choob') or die('Could not select database');
+
+if (@$_GET{'flush'} == 1)
+	gencache();
+
+// Get the status of the cache.
+$result = mysql_query('SHOW TABLE STATUS FROM choob LIKE "' . $cache_table . '"');
+if (mysql_num_rows($result) != 0)
+{
+	// If it exists.
+	$arr = mysql_fetch_assoc($result);
+	$str = $arr['Create_time'];
+	// previous to PHP 5.1.0 you would compare with -1, instead of false
+	if (!(($timestamp = strtotime($str)) === false /* use cache */ || date('d F Y', $timestamp) == date('d F Y') /* use cache */))
+		gencache();
+}
+else
+	gencache();
+
+
+$ignore = array(); foreach (explode('|', @$_GET{'ignore'}) as $ig) @$ignore[strtolower(nicklink($ig))] = true;
 $items = array_map('strtolower', array_map("mysql_real_escape_string", explode('|', $_GET['items'])));
 
-$query = 'SELECT `Nick`,`Text`,`Time` from `History` where `Text` LIKE "%me++%" OR `Text` LIKE "%me--%"';
+$query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` LIKE "%me++%" OR `Text` LIKE "%me--%"';
 
 foreach ($items as $item)
 	$query .= ' OR `Text` LIKE "%' . $item . '++%" OR `Text` LIKE "%' . $item . '--%"';
@@ -64,9 +127,17 @@ $result = mysql_query($query);
 mysql_num_rows($result) or die ("teh no results!");
 
 $imap = array();
+$lasttim = array();
 
 while ($row = mysql_fetch_assoc($result))
 {
+	$cleannick = strtolower(nicklink($row['Nick']));
+
+	//echo $cleannick . "|";
+
+	if (@$ignore[$cleannick])
+		continue;
+
 	preg_match_all('/' . $karmaPattern . '/', $row['Text'], $regs);
 	unset($regs[0]);
 	for ($i = 0; $i < count($regs[1]); $i++)
@@ -78,7 +149,7 @@ while ($row = mysql_fetch_assoc($result))
 		else
 			$item = $regs[2][$i];
 
-		if ($item == "me")
+		if ($item == "me" || strtolower($item) == $cleannick)
 		{
 			$item = nicklink($row['Nick']);
 			$direction = false;
@@ -89,18 +160,21 @@ while ($row = mysql_fetch_assoc($result))
 		if (!in_array($item, $items))
 			continue;
 
+
+
 		//echo "$item is going " . ($direction ? "up" : "down") . "\n";
-		$imap[$item][] = array($row['Time']/1000, $direction);
+		$tim = $row['Time']/1000;
+
+		if ($tim - @$lasttim[$item] > $flood)
+			$imap[$item][] = array($tim, $direction);
+
+		@$lasttim[$item] = $tim;
 	}
 }
 
 //print_r($imap);
 
 count($imap) or die("teh no info");
-
-foreach($imap as $thing => $imp)
-	if (count($imp) < 5)
-		die("not enough stuff for $thing");
 
 $mintime = time();
 $maxtime = 0;
@@ -129,10 +203,14 @@ foreach($imap as $imp)
 	}
 }
 
+if ($maxkarma<0)
+	$maxkarma = 0;
+
+if ($minkarma>0)
+	$minkarma = 0;
+
 $karmarange = $maxkarma-$minkarma;
 $timerange = $maxtime-$mintime;
-
-header("Content-type: image/png");
 
 /*
 // Day in seconds.
@@ -143,17 +221,22 @@ $daylength = 24 * 60 * 60;
 */
 
 // Image dimensions.
-$imw = 1000;
-$imh = 500;
+$imw = @$_GET{'w'};
+$imh = @$_GET{'h'};
+if ($imw == 0) $imw = 1000;
+if ($imh == 0) $imh = 500;
 
 $bordertop = 20;
 $borderbottom = 20;
 
 $lenmin = numlen($minkarma);
-$lenmax = numlen($minkarma);
+$lenmax = numlen($maxkarma);
 
 if ($lenmin > $lenmax) $lenmax=$lenmin;
-$borderleft = $lenmax*9 + 1;
+
+$borderleft = $lenmax*9 + 8;
+
+
 
 $maxlen = 0;
 
@@ -169,16 +252,21 @@ $im = imagecreate($imw, $imh);
 $c = imagecolorallocate($im, 255,255,255);
 $black = imagecolorallocate($im, 0,0,0);
 
-$colour = array(
-	imagecolorallocate($im, 255,127,127),
-	imagecolorallocate($im, 127,127,255),
-	imagecolorallocate($im, 255,127,255),
-	imagecolorallocate($im, 0,255,0),
-);
+$colour = array();
+$numcols = count($imap);
 
+for ($i=0; $i<$numcols; $i++)
+{
+	$rgb = hsv2rgb($i/$numcols*360, 1, 64);
+	$colour[] = imagecolorallocate($im, $rgb[0], $rgb[1], $rgb[2]);
+}
+
+//print_r($colour);
+
+/*
 if (count($imap) > count($colour))
 	die("programmer too lazy to make up enough colours");
-
+*/
 
 // assumes zero is always included.
 $zeroline = $bordertop + $subh * $maxkarma/$karmarange;
@@ -225,5 +313,6 @@ $timeright = date('jS \of F Y', $maxtime);
 
 imagestring($im, 6, $borderleft+$subw - strlen($timeright)*9, $bordertop+$subh+1, $timeright, $black);
 
-
+header("Content-type: image/png");
 imagepng($im);
+
