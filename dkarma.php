@@ -122,6 +122,11 @@ $query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` L
 foreach ($items as $item)
 	$query .= ' OR `Text` LIKE "%' . $item . '++%" OR `Text` LIKE "%' . $item . '--%"';
 
+$allitems = isset($_GET{'haxingthegame'});
+
+if ($allitems)
+	$query .= ' OR 1';
+
 $result = mysql_query($query);
 
 mysql_num_rows($result) or die ("teh no results!");
@@ -142,6 +147,8 @@ while ($row = mysql_fetch_assoc($result))
 	unset($regs[0]);
 	for ($i = 0; $i < count($regs[1]); $i++)
 	{
+		if (isset($_GET{'include'}) && !preg_match($_GET{'include'}, $row['Nick']))
+			continue;
 		$direction = $regs[3][$i] == "++";
 
 		if ($regs[1][$i] != "")
@@ -157,7 +164,7 @@ while ($row = mysql_fetch_assoc($result))
 
 		$item = strtolower($item);
 
-		if (!in_array($item, $items))
+		if (!$allitems && !in_array($item, $items))
 			continue;
 
 
