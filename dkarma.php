@@ -145,6 +145,11 @@ while ($row = mysql_fetch_assoc($result))
 
 	preg_match_all('/' . $karmaPattern . '/', $row['Text'], $regs);
 	unset($regs[0]);
+	
+	for ($i = 0; $i < count($regs[1]); $i++)
+		if (strlen($regs[1][$i]) > 16)
+			$regs[1][$i] = substr($regs[1][$i], 0, 15);
+
 	for ($i = 0; $i < count($regs[1]); $i++)
 	{
 		if (isset($_GET{'include'}) && !preg_match($_GET{'include'}, $row['Nick']))
