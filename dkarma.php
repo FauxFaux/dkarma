@@ -122,8 +122,8 @@ $query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` L
 foreach ($items as $item)
 	$query .= ' OR `Text` LIKE "%' . $item . '++%" OR `Text` LIKE "%' . $item . '--%"';
 
-$allitems = isset($_GET{'haxingthegame'});
-
+$allitems = isset($_GET{'allitems'});
+$total = isset($_GET{'total'});
 if ($allitems)
 	$query .= ' OR 1';
 
@@ -178,7 +178,7 @@ while ($row = mysql_fetch_assoc($result))
 		$tim = $row['Time']/1000;
 
 		if ($tim - @$lasttim[$item] > $flood)
-			$imap[$item][] = array($tim, $direction);
+			$imap[($total ? 'total' : $item)][] = array($tim, $direction);
 
 		@$lasttim[$item] = $tim;
 	}
