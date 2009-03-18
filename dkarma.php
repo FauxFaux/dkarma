@@ -1,4 +1,5 @@
 <?
+ini_set('memory_limit', '9001M');
 $cache_table = '_dkarma_cache';
 
 $flood = @$_GET{'flood'};
@@ -21,14 +22,14 @@ function gencache()
 	$c_style_quoted_string = "(?:"
 			. "\""
 			. "("
-				. "(?:\\\\.|[^\"\\\\])+" // C-style quoting
+				. "(?:\\\\.|[^\"\\\\]){1,15}" // C-style quoting
 			. ")"
 			. "\""
 			. ")";
 
 	// Plain string of >=2 chars.
 	$plain_karma = "("
-				. "[a-zA-Z0-9_]{2,}"
+				. "[a-zA-Z0-9_]{2,15}"
 			. ")";
 
 	// Either a quoted or a valid plain karmaitem.
@@ -92,9 +93,7 @@ function nicklink($nick)
 	return $nick;
 }
 
-mysql_connect('localhost', 'choob', 'ponies') or die('Could not connect: ' . mysql_error());
-
-mysql_select_db('choob') or die('Could not select database');
+require('db_connection.php');
 
 if (@$_GET{'flush'} == 1)
 	gencache();
@@ -124,6 +123,7 @@ foreach ($items as $item)
 
 $allitems = isset($_GET{'allitems'});
 $total = isset($_GET{'total'});
+$goup = isset($_GET{'goup'});
 if ($allitems)
 	$query .= ' OR 1';
 
@@ -152,9 +152,11 @@ while ($row = mysql_fetch_assoc($result))
 
 	for ($i = 0; $i < count($regs[1]); $i++)
 	{
-		if (isset($_GET{'include'}) && !preg_match($_GET{'include'}, $row['Nick']))
+		if (!@empty($_GET{'include'}) && !preg_match($_GET{'include'}, $row['Nick']))
 			continue;
 		$direction = $regs[3][$i] == "++";
+		if (isset($_GET['usage']))
+			$direction = true;
 
 		if ($regs[1][$i] != "")
 			$item = $regs[1][$i];
@@ -186,7 +188,40 @@ while ($row = mysql_fetch_assoc($result))
 
 //print_r($imap);
 
-count($imap) or die("teh no info");
+if (empty($imap))
+{
+?>
+<html><head><title>dkarma</title></head><body>
+<form method="get" action="">
+<ul>
+<li>
+ Item selection
+ <ul>
+  <li><label for="items">items: Pipe (|) seperated list of items to show: </label><input type="text" style="min-width: 50%" name="items" id="items"/></li>
+  <li><label for="allitems">allitems: ...or show all items: </label><input type="checkbox" name="allitems" id="allitems"/></li>
+  <li><label for="include">include: Only include karma from nicks matching this regex (e.g. /Faux/): </label><input type="text" name="include" id="include"/></li>
+  <li><label for="ignore">ignore: Pipe (|) seperated list of people to ignore karma from: </label><input type="text" name="ignore" id="ignore"/></li>
+ </ul>
+</li>
+<li>
+ Controls
+ <ul>
+  <li><label for="total">total: Only show one line; the total of all the items selected: </label><input type="checkbox" name="total" id="total"/></li>
+  <li><label for="goup">goup: Pretend all karma is upwards: </label><input type="checkbox" name="goup" id="goup"/></li>
+  <li><label for="flood">flood: Number of seconds of flood protection (&gt;0): </label><input type="text" name="flood" id="flood" value="900"/></li>
+ </ul>
+</li>
+<li>
+ Output
+ <ul>
+  <li>w and h: Width and height of the image: <input type="text" name="w" value="1000"/> x <input type="text" name="h" value="500"/></li>
+</ul>
+<input type="submit"/>
+</form>
+</body></html>
+<?php
+die();
+}
 
 $mintime = time();
 $maxtime = 0;
@@ -206,7 +241,7 @@ foreach($imap as $imp)
 	$running = 0;
 	foreach ($imp as $inst)
 	{
-		if ($inst[1])
+		if ($goup || $inst[1])
 			$running++;
 		else
 			$running--;
@@ -262,14 +297,18 @@ $subh = $imh - $bordertop - $borderbottom;
 
 $im = imagecreate($imw, $imh);
 $c = imagecolorallocate($im, 255,255,255);
+//imagesavealpha($im, true);
+#@imagefill($im, 0, 0, $c);
+
 $black = imagecolorallocate($im, 0,0,0);
 
 $colour = array();
 $numcols = count($imap);
+$max_colours = 60;
 
-for ($i=0; $i<$numcols; $i++)
+for ($i=0; $i<min($numcols,$max_colours); $i++)
 {
-	$rgb = hsv2rgb($i/$numcols*360, 1, 64);
+	$rgb = hsv2rgb((1+$i)/min($numcols,$max_colours)*360, 1, 64);
 	$colour[] = imagecolorallocate($im, $rgb[0], $rgb[1], $rgb[2]);
 }
 
@@ -291,18 +330,18 @@ foreach($imap as $nam => $imp) // imp is an array(array(time, dir), , , );
 	$lastpos = array($borderleft, $zeroline);
 	foreach ($imp as $inst)
 	{
-		if ($inst[1])
+		if ($goup || $inst[1])
 			$running++;
 		else
 			$running--;
 
 		$pos = array($borderleft + ($inst[0]-$mintime)/$timerange * $subw, $zeroline - $running/$karmarange * $subh);
 
-		imageline($im, $lastpos[0], $lastpos[1], $pos[0], $pos[1], $colour[$idx]);
+		imageline($im, $lastpos[0], $lastpos[1], $pos[0], $pos[1], $colour[$idx%$max_colours]);
 		$lastpos = $pos;
 	}
 
-	imagestring($im, 6, $lastpos[0] + 10, $lastpos[1] - 8, $nam, $colour[$idx]);
+	imagestring($im, 6, $lastpos[0] + 10, $lastpos[1] - 8, $nam, $colour[$idx%$max_colours]);
 
 	$idx++;
 }
