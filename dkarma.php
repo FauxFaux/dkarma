@@ -114,12 +114,22 @@ else
 
 
 $ignore = array(); foreach (explode('|', @$_GET{'ignore'}) as $ig) @$ignore[strtolower(nicklink($ig))] = true;
-$items = array_map('strtolower', array_map("mysql_real_escape_string", explode('|', $_GET['items'])));
+
+function no_magic_quotes($s) { return str_replace("\\'", "'", str_replace('\\"','"', $s)); }
+
+$input = array_map("no_magic_quotes", explode('|', $_GET['items']));
+$items = array_map('strtolower', $input);
+
+// items has the raw strings in it
 
 $query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` LIKE "%me++%" OR `Text` LIKE "%me--%"';
 
 foreach ($items as $item)
-	$query .= ' OR `Text` LIKE "%' . $item . '++%" OR `Text` LIKE "%' . $item . '--%"';
+{
+	$escaped = mysql_real_escape_string($item);
+	$query .= ' OR `Text` LIKE \'%' . $escaped . '++%\' OR `Text` LIKE \'%' . $escaped . '--%\''
+		. ' OR `Text` LIKE \'%' . $escaped . '"++%\' OR `Text` LIKE \'%' . $escaped . '"--%\'';
+}
 
 $allitems = isset($_GET{'allitems'});
 $total = isset($_GET{'total'});
