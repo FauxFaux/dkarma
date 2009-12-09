@@ -116,9 +116,11 @@ else
 $ignore = array(); foreach (explode('|', @$_GET{'ignore'}) as $ig) @$ignore[strtolower(nicklink($ig))] = true;
 
 function no_magic_quotes($s) { return str_replace("\\'", "'", str_replace('\\"','"', $s)); }
+function spaces_to_underscores($s) { return str_replace(" ", "_", $s); }
+function underscores_to_spaces($s) { return str_replace("_", " ", $s); }
 
 $input = array_map("no_magic_quotes", explode('|', $_GET['items']));
-$items = array_map('strtolower', $input);
+$items = array_map('spaces_to_underscores', array_map('strtolower', $input));
 
 // items has the raw strings in it
 
@@ -126,9 +128,12 @@ $query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` L
 
 foreach ($items as $item)
 {
-	$escaped = mysql_real_escape_string($item);
-	$query .= ' OR `Text` LIKE \'%' . $escaped . '++%\' OR `Text` LIKE \'%' . $escaped . '--%\''
-		. ' OR `Text` LIKE \'%' . $escaped . '"++%\' OR `Text` LIKE \'%' . $escaped . '"--%\'';
+	$escapedu = mysql_real_escape_string($item);
+	$escapeds = mysql_real_escape_string(underscores_to_spaces($item));
+	$query .= ' OR `Text` LIKE \'%' . $escapedu . '++%\' OR `Text` LIKE \'%' . $escapedu . '--%\'';
+	$query .= ' OR `Text` LIKE \'%' . $escapedu . '"++%\' OR `Text` LIKE \'%' . $escapedu . '"--%\'';
+	$query .= ' OR `Text` LIKE \'%' . $escapeds . '++%\' OR `Text` LIKE \'%' . $escapeds . '--%\'';
+	$query .= ' OR `Text` LIKE \'%' . $escapeds . '"++%\' OR `Text` LIKE \'%' . $escapeds . '"--%\'';
 }
 
 $allitems = isset($_GET{'allitems'});
@@ -179,7 +184,7 @@ while ($row = mysql_fetch_assoc($result))
 			$direction = false;
 		}
 
-		$item = strtolower($item);
+		$item = spaces_to_underscores(strtolower($item));
 
 		if (!$allitems && !in_array($item, $items))
 			continue;
