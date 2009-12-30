@@ -139,6 +139,8 @@ foreach ($items as $item)
 $allitems = isset($_GET{'allitems'});
 $total = isset($_GET{'total'});
 $goup = isset($_GET{'goup'});
+$nodown = isset($_GET{'nodown'});
+
 if ($allitems)
 	$query .= ' OR 1';
 
@@ -223,6 +225,7 @@ if (empty($imap))
  <ul>
   <li><label for="total">total: Only show one line; the total of all the items selected: </label><input type="checkbox" name="total" id="total"/></li>
   <li><label for="goup">goup: Pretend all karma is upwards: </label><input type="checkbox" name="goup" id="goup"/></li>
+  <li><label for="nodown">nodown: Ignore haters, only include positive karma: </label><input type="checkbox" name="nodown" id="nodown"/></li>
   <li><label for="flood">flood: Number of seconds of flood protection (&gt;0): </label><input type="text" name="flood" id="flood" value="900"/></li>
  </ul>
 </li>
@@ -258,8 +261,9 @@ foreach($imap as $imp)
 	{
 		if ($goup || $inst[1])
 			$running++;
-		else
+		else if (!$nodown)
 			$running--;
+
 		if ($running < $minkarma) $minkarma = $running;
 		if ($running > $maxkarma) $maxkarma = $running;
 	}
@@ -347,7 +351,7 @@ foreach($imap as $nam => $imp) // imp is an array(array(time, dir), , , );
 	{
 		if ($goup || $inst[1])
 			$running++;
-		else
+		else if (!$nodown)
 			$running--;
 
 		$pos = array($borderleft + ($inst[0]-$mintime)/$timerange * $subw, $zeroline - $running/$karmarange * $subh);
