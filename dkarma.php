@@ -186,6 +186,9 @@ while ($row = mysql_fetch_assoc($result))
 			$direction = false;
 		}
 
+		if (!@empty($_GET{'invert'}) && preg_match($_GET{'invert'}, $row['Nick']))
+			$direction =! $direction;
+
 		$item = spaces_to_underscores(strtolower($item));
 
 		if (!$allitems && !in_array($item, $items))
@@ -217,6 +220,7 @@ if (empty($imap))
   <li><label for="items">items: Pipe (|) seperated list of items to show: </label><input type="text" style="min-width: 50%" name="items" id="items"/></li>
   <li><label for="allitems">allitems: ...or show all items: </label><input type="checkbox" name="allitems" id="allitems"/></li>
   <li><label for="include">include: Only include karma from nicks matching this regex (e.g. /Faux/): </label><input type="text" name="include" id="include"/></li>
+  <li><label for="invert">invert: Invert karma from nicks matching this regex (e.g. /Sraphim|bma/i): </label><input type="text" name="invert" id="invert"/></li>
   <li><label for="ignore">ignore: Pipe (|) seperated list of people to ignore karma from: </label><input type="text" name="ignore" id="ignore"/></li>
  </ul>
 </li>
