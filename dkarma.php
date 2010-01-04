@@ -105,8 +105,8 @@ if (mysql_num_rows($result) != 0)
 	// If it exists.
 	$arr = mysql_fetch_assoc($result);
 	$str = $arr['Create_time'];
-	// previous to PHP 5.1.0 you would compare with -1, instead of false
-	if (!(($timestamp = strtotime($str)) === false /* use cache */ || date('d F Y', $timestamp) == date('d F Y') /* use cache */))
+	$timestamp = strtotime($str);
+	if (date('d F Y', $timestamp) != date('d F Y'))
 		gencache();
 }
 else
@@ -124,87 +124,93 @@ $items = array_map('spaces_to_underscores', array_map('strtolower', $input));
 
 // items has the raw strings in it
 
-$query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` LIKE "%me++%" OR `Text` LIKE "%me--%"';
-
-foreach ($items as $item)
-{
-	$escapedu = mysql_real_escape_string($item);
-	$escapeds = mysql_real_escape_string(underscores_to_spaces($item));
-	$query .= ' OR `Text` LIKE \'%' . $escapedu . '++%\' OR `Text` LIKE \'%' . $escapedu . '--%\'';
-	$query .= ' OR `Text` LIKE \'%' . $escapedu . '"++%\' OR `Text` LIKE \'%' . $escapedu . '"--%\'';
-	$query .= ' OR `Text` LIKE \'%' . $escapeds . '++%\' OR `Text` LIKE \'%' . $escapeds . '--%\'';
-	$query .= ' OR `Text` LIKE \'%' . $escapeds . '"++%\' OR `Text` LIKE \'%' . $escapeds . '"--%\'';
-}
-
 $allitems = isset($_GET{'allitems'});
-$total = isset($_GET{'total'});
-$goup = isset($_GET{'goup'});
-$nodown = isset($_GET{'nodown'});
 
-if ($allitems)
-	$query .= ' OR 1';
-
-$result = mysql_query($query);
-
-mysql_num_rows($result) or die ("teh no results!");
-
-$imap = array();
-$lasttim = array();
-
-while ($row = mysql_fetch_assoc($result))
+if ($items != array("") || $allitems)
 {
-	$cleannick = strtolower(nicklink($row['Nick']));
+	$query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` LIKE "%me++%" OR `Text` LIKE "%me--%"';
 
-	//echo $cleannick . "|";
-
-	if (@$ignore[$cleannick])
-		continue;
-
-	preg_match_all('/' . $karmaPattern . '/', $row['Text'], $regs);
-	unset($regs[0]);
-	
-	for ($i = 0; $i < count($regs[1]); $i++)
-		if (strlen($regs[1][$i]) > 16)
-			$regs[1][$i] = substr($regs[1][$i], 0, 15);
-
-	for ($i = 0; $i < count($regs[1]); $i++)
+	foreach ($items as $item)
 	{
-		if (!@empty($_GET{'include'}) && !preg_match($_GET{'include'}, $row['Nick']))
-			continue;
-		$direction = $regs[3][$i] == "++";
-		if (isset($_GET['usage']))
-			$direction = true;
-
-		if ($regs[1][$i] != "")
-			$item = $regs[1][$i];
-		else
-			$item = $regs[2][$i];
-
-		if ($item == "me" || strtolower($item) == $cleannick)
-		{
-			$item = nicklink($row['Nick']);
-			$direction = false;
-		}
-
-		if (!@empty($_GET{'invert'}) && preg_match($_GET{'invert'}, $row['Nick']))
-			$direction =! $direction;
-
-		$item = spaces_to_underscores(strtolower($item));
-
-		if (!$allitems && !in_array($item, $items))
-			continue;
-
-
-
-		//echo "$item is going " . ($direction ? "up" : "down") . "\n";
-		$tim = $row['Time']/1000;
-
-		if ($tim - @$lasttim[$item] > $flood)
-			$imap[($total ? 'total' : $item)][] = array($tim, $direction);
-
-		@$lasttim[$item] = $tim;
+		$escapedu = mysql_real_escape_string($item);
+		$escapeds = mysql_real_escape_string(underscores_to_spaces($item));
+		$query .= ' OR `Text` LIKE \'%' . $escapedu . '++%\' OR `Text` LIKE \'%' . $escapedu . '--%\'';
+		$query .= ' OR `Text` LIKE \'%' . $escapedu . '"++%\' OR `Text` LIKE \'%' . $escapedu . '"--%\'';
+		$query .= ' OR `Text` LIKE \'%' . $escapeds . '++%\' OR `Text` LIKE \'%' . $escapeds . '--%\'';
+		$query .= ' OR `Text` LIKE \'%' . $escapeds . '"++%\' OR `Text` LIKE \'%' . $escapeds . '"--%\'';
 	}
-}
+
+	$total = isset($_GET{'total'});
+	$goup = isset($_GET{'goup'});
+	$nodown = isset($_GET{'nodown'});
+
+	if ($allitems)
+		$query .= ' OR 1';
+
+	$result = mysql_query($query);
+
+	mysql_num_rows($result) or die ("teh no results!");
+
+	$imap = array();
+	$lasttim = array();
+
+	while ($row = mysql_fetch_assoc($result))
+	{
+		$cleannick = strtolower(nicklink($row['Nick']));
+
+		//echo $cleannick . "|";
+
+		if (@$ignore[$cleannick])
+			continue;
+
+		preg_match_all('/' . $karmaPattern . '/', $row['Text'], $regs);
+		unset($regs[0]);
+		
+		for ($i = 0; $i < count($regs[1]); $i++)
+			if (strlen($regs[1][$i]) > 16)
+				$regs[1][$i] = substr($regs[1][$i], 0, 15);
+
+		for ($i = 0; $i < count($regs[1]); $i++)
+		{
+			if (!@empty($_GET{'include'}) && !preg_match($_GET{'include'}, $row['Nick']))
+				continue;
+			$direction = $regs[3][$i] == "++";
+			if (isset($_GET['usage']))
+				$direction = true;
+
+			if ($regs[1][$i] != "")
+				$item = $regs[1][$i];
+			else
+				$item = $regs[2][$i];
+
+			if ($item == "me" || strtolower($item) == $cleannick)
+			{
+				$item = nicklink($row['Nick']);
+				$direction = false;
+			}
+
+			if (!@empty($_GET{'invert'}) && preg_match($_GET{'invert'}, $row['Nick']))
+				$direction =! $direction;
+
+			$item = spaces_to_underscores(strtolower($item));
+
+			if (!$allitems && !in_array($item, $items))
+				continue;
+
+
+
+			//echo "$item is going " . ($direction ? "up" : "down") . "\n";
+			$tim = $row['Time']/1000;
+
+			if ($tim - @$lasttim[$item] > $flood)
+				$imap[($total ? 'total' : $item)][] = array($tim, $direction);
+
+			@$lasttim[$item] = $tim;
+		}
+	}
+} else
+	$imap = array();
+
 
 //print_r($imap);
 
