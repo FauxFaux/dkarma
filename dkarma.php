@@ -2,9 +2,6 @@
 ini_set('memory_limit', '9001M');
 $cache_table = '_dkarma_cache';
 
-$flood = @$_GET{'flood'};
-if ($flood == 0) $flood = 900;
-
 function gencache()
 {
 	global $cache_table;
@@ -113,7 +110,9 @@ else
 	gencache();
 
 
-$ignore = array(); foreach (explode('|', @$_GET{'ignore'}) as $ig) @$ignore[strtolower(nicklink($ig))] = true;
+$ignore = array();
+foreach (explode('|', @$_GET{'ignore'}) as $ig)
+	@$ignore[strtolower(nicklink($ig))] = true;
 
 function no_magic_quotes($s) { return str_replace("\\'", "'", str_replace('\\"','"', $s)); }
 function spaces_to_underscores($s) { return str_replace(" ", "_", $s); }
@@ -140,6 +139,9 @@ if ($items != array("") || $allitems)
 		$query .= ' OR `Text` LIKE \'%' . $escapeds . '"++%\' OR `Text` LIKE \'%' . $escapeds . '"--%\'';
 	}
 
+	$flood = $_GET{'flood'};
+	$invert = $_GET{'invert'};
+	$include = $_GET{'include'};
 	$total = isset($_GET{'total'});
 	$goup = isset($_GET{'goup'});
 	$nodown = isset($_GET{'nodown'});
@@ -172,7 +174,7 @@ if ($items != array("") || $allitems)
 
 		for ($i = 0; $i < count($regs[1]); $i++)
 		{
-			if (!@empty($_GET{'include'}) && !preg_match($_GET{'include'}, $row['Nick']))
+			if (!@empty($include) && !preg_match($include, $row['Nick']))
 				continue;
 			$direction = $regs[3][$i] == "++";
 			if (isset($_GET['usage']))
@@ -189,7 +191,7 @@ if ($items != array("") || $allitems)
 				$direction = false;
 			}
 
-			if (!@empty($_GET{'invert'}) && preg_match($_GET{'invert'}, $row['Nick']))
+			if (!@empty($invert) && preg_match($invert, $row['Nick']))
 				$direction =! $direction;
 
 			$item = spaces_to_underscores(strtolower($item));
@@ -197,12 +199,10 @@ if ($items != array("") || $allitems)
 			if (!$allitems && !in_array($item, $items))
 				continue;
 
-
-
 			//echo "$item is going " . ($direction ? "up" : "down") . "\n";
 			$tim = $row['Time']/1000;
 
-			if ($tim - @$lasttim[$item] > $flood)
+			if ($tim - @$lasttim[$item] > $flood) // XXX FLOOD
 				$imap[($total ? 'total' : $item)][] = array($tim, $direction);
 
 			@$lasttim[$item] = $tim;
@@ -218,34 +218,87 @@ if (empty($imap))
 {
 ?>
 <html><head><title>dkarma</title></head><body>
-<form method="get" action="">
-<ul>
-<li>
- Item selection
- <ul>
-  <li><label for="items">items: Pipe (|) seperated list of items to show: </label><input type="text" style="min-width: 50%" name="items" id="items"/></li>
-  <li><label for="allitems">allitems: ...or show all items: </label><input type="checkbox" name="allitems" id="allitems"/></li>
-  <li><label for="include">include: Only include karma from nicks matching this regex (e.g. /Faux/): </label><input type="text" name="include" id="include"/></li>
-  <li><label for="invert">invert: Invert karma from nicks matching this regex (e.g. /Sraphim|bma/i): </label><input type="text" name="invert" id="invert"/></li>
-  <li><label for="ignore">ignore: Pipe (|) seperated list of people to ignore karma from: </label><input type="text" name="ignore" id="ignore"/></li>
- </ul>
-</li>
-<li>
- Controls
- <ul>
-  <li><label for="total">total: Only show one line; the total of all the items selected: </label><input type="checkbox" name="total" id="total"/></li>
-  <li><label for="goup">goup: Pretend all karma is upwards: </label><input type="checkbox" name="goup" id="goup"/></li>
-  <li><label for="nodown">nodown: Ignore haters, only include positive karma: </label><input type="checkbox" name="nodown" id="nodown"/></li>
-  <li><label for="flood">flood: Number of seconds of flood protection (&gt;0): </label><input type="text" name="flood" id="flood" value="900"/></li>
- </ul>
-</li>
-<li>
- Output
- <ul>
-  <li>w and h: Width and height of the image: <input type="text" name="w" value="1000"/> x <input type="text" name="h" value="500"/></li>
-</ul>
+<form id="theform" name="pony" action="" method="get">
+<p>
 <input type="submit"/>
+</p>
+<p>
+w and h: Width and height of the image: <input type="text" name="w" value="1000"/> x <input type="text" name="h" value="500"/>
+</p>
 </form>
+<input type="button" onclick="addnew()" value="+"/> or <a href="?">destroy everything</a>.
+<script type="text/javascript">
+var get=<?=json_encode($_GET)?>;
+
+function input(type, name) {
+	var one = document.createElement('input');
+	one.type=type;
+	one.name=name + '[' + total + ']';
+	if (get[name] != undefined && get[name][total] != undefined)
+		one.value=get[name][total];
+	if (name == 'flood' && one.value == 0)
+		one.value=900;
+	one.id=name+total;
+	return one;
+}
+
+function ul() {
+	return document.createElement('ul');
+}
+
+function li(a) {
+	return appret(document.createElement('li'), a);
+}
+
+var total=0;
+
+function label(of, contents) {
+	var l = document.createElement('label');
+	l['for'] = of + total;
+	l.appendChild(document.createTextNode(contents));
+	return l;
+}
+
+function appret(to, what) {
+	to.appendChild(what);
+	return to;
+}
+
+function og(u, id, desc, type) {
+	var inp=input(type, id);
+	u.appendChild(appret(li(label(id, id + ': ' + desc + ": ")), inp));
+	return inp;
+}
+
+function newu(rootul, head) {
+	return rootul.appendChild(li(document.createTextNode(head))).appendChild(ul());
+}
+
+
+function addnew() {
+	var form = document.getElementById('theform');
+	var rootul = ul();
+	var u = newu(rootul, 'Item selection:');
+	var itemsinp = input('text', 'items');
+	itemsinp.style.minWidth='50%';
+	u.appendChild(appret(li(label('items', 'items: Pipe (|) seperated list of items to show: ')), itemsinp));
+	og(u, 'allitems', '...or show all items', 'checkbox');
+	og(u, 'include', 'Only include karma from nicks matching this regex (e.g. /Faux/)', 'text');
+	og(u, 'invert', 'Invert karma from nicks matching this regex (e.g. /Sraphim|bma/i)', 'text');
+	og(u, 'ignore', 'Pipe (|) seperated list of people to ignore karma from', 'text');
+	u = newu(rootul, 'Controls:');
+	og(u, 'total', 'Only show one line; the total of all the items selected', 'checkbox');
+	og(u, 'goup', 'Pretend all karma is upwards (that\'ll be the day)', 'checkbox');
+	og(u, 'nodown', 'Ignore haters, only include positive karma', 'checkbox');
+	og(u, 'flood', 'Number of seconds of flood protection (>0)', 'text');
+	form.appendChild(appret(document.createElement('p'), rootul));
+	++total;
+}
+
+for (var i = 0; i < Math.max(1, <?=count($_GET{'items'})?>); ++i)
+	addnew();
+</script>
+
 </body></html>
 <?php
 die();
