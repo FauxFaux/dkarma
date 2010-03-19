@@ -111,21 +111,32 @@ else
 
 
 $ignore = array();
-foreach (explode('|', @$_GET{'ignore'}) as $ig)
-	@$ignore[strtolower(nicklink($ig))] = true;
+$cnt = count($_GET{'items'});
+for ($ds = 0; $ds < $cnt; ++$ds) 
+	foreach (explode('|', @$_GET{'ignore'}[$ds]) as $ig)
+		@$ignore[$ds][strtolower(nicklink($ig))] = true;
+
+function array_flatten(array $array) {
+	$ret_array = array();
+	foreach(new RecursiveIteratorIterator(new RecursiveArrayIterator($array)) as $value) {
+		$ret_array[] = $value;
+	}
+	return $ret_array;
+}
 
 function no_magic_quotes($s) { return str_replace("\\'", "'", str_replace('\\"','"', $s)); }
 function spaces_to_underscores($s) { return str_replace(" ", "_", $s); }
 function underscores_to_spaces($s) { return str_replace("_", " ", $s); }
+function gettoitems($x) {
+	$input = array_map("no_magic_quotes", explode('|', $x));
+	return array_unique(array_map('spaces_to_underscores', array_map('strtolower', $input)));
+}
 
-$input = array_map("no_magic_quotes", explode('|', $_GET['items']));
-$items = array_map('spaces_to_underscores', array_map('strtolower', $input));
-
-// items has the raw strings in it
+$items = gettoitems(@implode('|', $_GET['items']));
 
 $allitems = isset($_GET{'allitems'});
 
-if ($items != array("") || $allitems)
+if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 {
 	$query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` LIKE "%me++%" OR `Text` LIKE "%me--%"';
 
@@ -139,6 +150,7 @@ if ($items != array("") || $allitems)
 		$query .= ' OR `Text` LIKE \'%' . $escapeds . '"++%\' OR `Text` LIKE \'%' . $escapeds . '"--%\'';
 	}
 
+	$thisitems = $_GET{'items'};
 	$flood = $_GET{'flood'};
 	$invert = $_GET{'invert'};
 	$include = $_GET{'include'};
@@ -148,64 +160,63 @@ if ($items != array("") || $allitems)
 
 	if ($allitems)
 		$query .= ' OR 1';
-
+	
 	$result = mysql_query($query);
 
 	mysql_num_rows($result) or die ("teh no results!");
 
 	$imap = array();
 	$lasttim = array();
-
-	while ($row = mysql_fetch_assoc($result))
-	{
-		$cleannick = strtolower(nicklink($row['Nick']));
-
-		//echo $cleannick . "|";
-
-		if (@$ignore[$cleannick])
-			continue;
-
-		preg_match_all('/' . $karmaPattern . '/', $row['Text'], $regs);
-		unset($regs[0]);
-		
-		for ($i = 0; $i < count($regs[1]); $i++)
-			if (strlen($regs[1][$i]) > 16)
-				$regs[1][$i] = substr($regs[1][$i], 0, 15);
-
-		for ($i = 0; $i < count($regs[1]); $i++)
+	for ($ds = 0; $ds < $cnt; ++$ds) {
+		mysql_data_seek($result, 0);
+		while ($row = mysql_fetch_assoc($result))
 		{
-			if (!@empty($include) && !preg_match($include, $row['Nick']))
+			$cleannick = strtolower(nicklink($row['Nick']));
+
+			if (@$ignore[$ds][$cleannick])
 				continue;
-			$direction = $regs[3][$i] == "++";
-			if (isset($_GET['usage']))
-				$direction = true;
 
-			if ($regs[1][$i] != "")
-				$item = $regs[1][$i];
-			else
-				$item = $regs[2][$i];
+			preg_match_all('/' . $karmaPattern . '/', $row['Text'], $regs);
+			unset($regs[0]);
+			
+			for ($i = 0; $i < count($regs[1]); $i++)
+				if (strlen($regs[1][$i]) > 16)
+					$regs[1][$i] = substr($regs[1][$i], 0, 15);
 
-			if ($item == "me" || strtolower($item) == $cleannick)
+			for ($i = 0; $i < count($regs[1]); $i++)
 			{
-				$item = nicklink($row['Nick']);
-				$direction = false;
+				if (!@empty($include[$ds]) && !preg_match($include[$ds], $row['Nick']))
+					continue;
+				$direction = $regs[3][$i] == "++";
+				if (isset($_GET['usage']))
+					$direction = true;
+
+				if ($regs[1][$i] != "")
+					$item = $regs[1][$i];
+				else
+					$item = $regs[2][$i];
+
+				if ($item == "me" || strtolower($item) == $cleannick)
+				{
+					$item = nicklink($row['Nick']);
+					$direction = false;
+				}
+
+				if (!@empty($invert[$ds]) && preg_match($invert[$ds], $row['Nick']))
+					$direction =! $direction;
+
+				$item = spaces_to_underscores(strtolower($item));
+
+				if (!$allitems && !in_array($item, gettoitems($thisitems[$ds])))
+					continue;
+
+				$tim = $row['Time']/1000;
+
+				if ($tim - @$lasttim[$ds][$item] > $flood[$ds])
+					$imap[($total[$ds] ? 'total' : $item) . $ds][] = array($tim, $direction);
+
+				@$lasttim[$ds][$item] = $tim;
 			}
-
-			if (!@empty($invert) && preg_match($invert, $row['Nick']))
-				$direction =! $direction;
-
-			$item = spaces_to_underscores(strtolower($item));
-
-			if (!$allitems && !in_array($item, $items))
-				continue;
-
-			//echo "$item is going " . ($direction ? "up" : "down") . "\n";
-			$tim = $row['Time']/1000;
-
-			if ($tim - @$lasttim[$item] > $flood) // XXX FLOOD
-				$imap[($total ? 'total' : $item)][] = array($tim, $direction);
-
-			@$lasttim[$item] = $tim;
 		}
 	}
 } else
@@ -295,7 +306,7 @@ function addnew() {
 	++total;
 }
 
-for (var i = 0; i < Math.max(1, <?=count($_GET{'items'})?>); ++i)
+for (var i = 0; i < Math.max(1, <?=$cnt?>); ++i)
 	addnew();
 </script>
 
