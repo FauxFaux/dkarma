@@ -38,6 +38,7 @@ function gencache()
 		. "(?: ^ | (?<=[\\s\\(]) )" // Anchor at start of string, whitespace or open bracket.
 		. $karma_item
 		. $plusplus_or_minusminus
+		. "((?:\\s+(?:for|because) .{5,})?)"
 		. "[\\)\\.,]?" // Allowed to terminate with full stop/close bracket etc.
 		. "(?: (?=\\s) | $ )" // Need either whitespace or end-of-string now.
 		. ")"
@@ -157,6 +158,7 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 	$total = isset($_GET{'total'});
 	$goup = isset($_GET{'goup'});
 	$nodown = isset($_GET{'nodown'});
+	$reasons = $_GET{'reasons'};
 
 	if ($allitems)
 		$query .= ' OR 1';
@@ -188,6 +190,8 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 				if (!@empty($include[$ds]) && !preg_match($include[$ds], $row['Nick']))
 					continue;
 				$direction = $regs[3][$i] == "++";
+				if ($reasons[$ds] && "" == $regs[4][$i])
+					continue;
 				if (isset($_GET['usage']))
 					$direction = true;
 
@@ -302,6 +306,7 @@ function addnew() {
 	og(u, 'goup', 'Pretend all karma is upwards (that\'ll be the day)', 'checkbox');
 	og(u, 'nodown', 'Ignore haters, only include positive karma', 'checkbox');
 	og(u, 'flood', 'Number of seconds of flood protection (>0)', 'text');
+	og(u, 'reasons', 'Reasons are mandatory', 'checkbox');
 	form.appendChild(appret(document.createElement('p'), rootul));
 	++total;
 }
