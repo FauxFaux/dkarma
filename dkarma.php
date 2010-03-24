@@ -249,8 +249,11 @@ function input(type, name) {
 	var one = document.createElement('input');
 	one.type=type;
 	one.name=name + '[' + total + ']';
-	if (get[name] != undefined && get[name][total] != undefined)
+	if (get[name] != undefined && get[name][total] != undefined) {
 		one.value=get[name][total];
+		if ('checkbox' == type && one.value != '')
+			one.checked = 'checked';
+	}
 	if (name == 'flood' && one.value == 0)
 		one.value=900;
 	one.id=name+total;
