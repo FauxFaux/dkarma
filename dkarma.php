@@ -242,6 +242,7 @@ w and h: Width and height of the image: <input type="text" name="w" value="1000"
 </p>
 </form>
 <input type="button" onclick="addnew()" value="+"/> or <a href="?">destroy everything</a>.
+<noscript>Javascript is required for now.  Free-software, etc.</noscript>
 <script type="text/javascript">
 var get=<?=json_encode($_GET)?>;
 
