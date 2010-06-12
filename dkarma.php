@@ -403,6 +403,7 @@ $c = imagecolorallocate($im, 255,255,255);
 #@imagefill($im, 0, 0, $c);
 
 $black = imagecolorallocate($im, 0,0,0);
+$grey = imagecolorallocate($im, 120,120,120);
 
 $colour = array();
 $numcols = count($imap);
@@ -449,10 +450,10 @@ foreach($imap as $nam => $imp) // imp is an array(array(time, dir), , , );
 }
 
 
-imageline($im, $borderleft, $bordertop, $borderleft, $bordertop + $subh, $black);
-imageline($im, $borderleft, $bordertop + $subh, $borderleft + $subw, $bordertop + $subh, $black);
+imageline($im, $borderleft, $bordertop, $borderleft, $bordertop + $subh, $black); // y axis
+imageline($im, $borderleft, $bordertop + $subh, $borderleft + $subw, $bordertop + $subh, $black); // x axis
 
-imageline($im, $borderleft, $zeroline, $borderleft + $subw, $zeroline, $black);
+imageline($im, $borderleft, $zeroline, $borderleft + $subw, $zeroline, $black); // zero line
 
 imagestring($im, 6, 6, $zeroline-6, "0", $black);
 
@@ -461,6 +462,19 @@ imagestring($im, 6, 6, $bordertop+$subh-6, $minkarma, $black);
 
 
 imagestring($im, 6, $borderleft, $bordertop+$subh+1, date('jS \of F Y', $mintime), $black);
+
+$sy = date('Y', $mintime);
+$ey = date('Y', $maxtime);
+for ($i = $sy; $i <= $ey; ++$i) { # for each covered year
+	$t = mktime(0,0,0,0,0,$i);
+	$x = ($t-$mintime)/($maxtime-$mintime) * $subw;
+#	echo "$i: ($t-$mintime)/($maxtime-$mintime) * $subw = $x;<br/>";
+	if ($x > 0) {
+		imageline($im, $x, $bordertop, $x, $bordertop + $subh, $grey); # year line
+		if ($x > 250 && $x < $subw - 250) # close enough to the edge that the other labels would cover it
+			imagestring($im, 6, $x - 17, $bordertop+$subh+1, $i, $grey); # 2008 / 2009 etc.
+	}
+}	
 
 $timeright = date('jS \of F Y', $maxtime);
 
