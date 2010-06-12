@@ -155,7 +155,7 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 	$flood = $_GET{'flood'};
 	$invert = $_GET{'invert'};
 	$include = $_GET{'include'};
-	$total = isset($_GET{'total'});
+	$total = $_GET{'total'};
 	$goup = isset($_GET{'goup'});
 	$nodown = isset($_GET{'nodown'});
 	$reasons = $_GET{'reasons'};
@@ -215,7 +215,6 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 					continue;
 
 				$tim = $row['Time']/1000;
-
 				if ($tim - @$lasttim[$ds][$item] > $flood[$ds])
 					$imap[($total[$ds] ? 'total' : $item) . $ds][] = array($tim, $direction);
 
