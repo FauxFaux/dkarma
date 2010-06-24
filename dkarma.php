@@ -110,11 +110,21 @@ if (mysql_num_rows($result) != 0)
 else
 	gencache();
 
+$types = array('items', 'allitems', 'include', 'invert', 'ignore', 'total', 'goup', 'nodown', 'flood', 'reasons');
+
+$cnt = 0; // number of graphs
+foreach ($types as $ty)
+	if (is_array($_GET[$ty])) {
+		$prop=max(array_keys($_GET[$ty]));
+		if ($prop > $cnt)
+			$cnt = $prop;
+	}
+
+++$cnt;
 
 $ignore = array();
-$cnt = count($_GET{'items'});
 for ($ds = 0; $ds < $cnt; ++$ds) 
-	foreach (explode('|', @$_GET{'ignore'}[$ds]) as $ig)
+	foreach (explode('|', get('ignore', $ds)) as $ig)
 		@$ignore[$ds][strtolower(nicklink($ig))] = true;
 
 function array_flatten(array $array) {
@@ -133,9 +143,28 @@ function gettoitems($x) {
 	return array_unique(array_map('spaces_to_underscores', array_map('strtolower', $input)));
 }
 
-$items = gettoitems(@implode('|', $_GET['items']));
+function get($key, $ds) {
+	$g = $_GET[$key];
+	if (is_array($g))
+		return $g[$ds];
+	return $g;
+}
 
-$allitems = isset($_GET{'allitems'});
+function anyset($key) {
+	global $cnt;
+	for ($ds = 0; $ds < $cnt; ++$ds)
+		if ('' != get($key, $ds))
+			return true;
+	return false;
+}
+
+$itemsget = $_GET['items'];
+if (is_array($itemsget))
+	$items = gettoitems(@implode('|', $itemsget));
+else
+	$items = gettoitems($itemsget);
+
+$allitems = anyset('allitems');
 
 if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 {
@@ -151,18 +180,12 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 		$query .= ' OR `Text` LIKE \'%' . $escapeds . '"++%\' OR `Text` LIKE \'%' . $escapeds . '"--%\'';
 	}
 
-	$thisitems = $_GET{'items'};
-	$flood = $_GET{'flood'};
-	$invert = $_GET{'invert'};
-	$include = $_GET{'include'};
-	$total = $_GET{'total'};
-	$goup = isset($_GET{'goup'});
+	$goup = false; // not working
 	$nodown = isset($_GET{'nodown'});
-	$reasons = $_GET{'reasons'};
 
 	if ($allitems)
 		$query .= ' OR 1';
-	
+
 	$result = mysql_query($query);
 
 	mysql_num_rows($result) or die ("teh no results!");
@@ -187,10 +210,10 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 
 			for ($i = 0; $i < count($regs[1]); $i++)
 			{
-				if (!@empty($include[$ds]) && !preg_match($include[$ds], $row['Nick']))
+				if ('' != get('include',$ds) && !preg_match(get('include',$ds), $row['Nick']))
 					continue;
 				$direction = $regs[3][$i] == "++";
-				if ($reasons[$ds] && "" == $regs[4][$i])
+				if (get('reasons',$ds) && "" == $regs[4][$i])
 					continue;
 				if (isset($_GET['usage']))
 					$direction = true;
@@ -206,17 +229,17 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 					$direction = false;
 				}
 
-				if (!@empty($invert[$ds]) && preg_match($invert[$ds], $row['Nick']))
+				if ('' != get('invert',$ds) && preg_match(get('invert',$ds), $row['Nick']))
 					$direction =! $direction;
 
 				$item = spaces_to_underscores(strtolower($item));
 
-				if (!$allitems && !in_array($item, gettoitems($thisitems[$ds])))
+				if (!$allitems && !in_array($item, gettoitems(get('items',$ds))))
 					continue;
 
 				$tim = $row['Time']/1000;
-				if ($tim - @$lasttim[$ds][$item] > $flood[$ds])
-					$imap[($total[$ds] ? 'total' : $item) . $ds][] = array($tim, $direction);
+				if ($tim - @$lasttim[$ds][$item] > get('flood',$ds))
+					$imap[(get('total',$ds) ? 'total' : $item) . $ds][] = array($tim, $direction);
 
 				@$lasttim[$ds][$item] = $tim;
 			}
@@ -246,12 +269,19 @@ w and h: Width and height of the image: <input type="text" name="w" value="1000"
 <script type="text/javascript">
 var get=<?=json_encode($_GET)?>;
 
+function gut(type, ds) {
+	var g = get[type];
+	if (typeof g != 'object')
+		return g;
+	return get[type][ds];
+}
+
 function input(type, name) {
 	var one = document.createElement('input');
 	one.type=type;
 	one.name=name + '[' + total + ']';
-	if (get[name] != undefined && get[name][total] != undefined) {
-		one.value=get[name][total];
+	if (gut(name, total) != undefined) {
+		one.value=gut(name, total);
 		if ('checkbox' == type && one.value != '')
 			one.checked = 'checked';
 	}
@@ -326,7 +356,7 @@ function allsamefortype(orig, type) {
 
 function sub() {
 	var orig = document.forms['fake'].elements;
-	var types = ['items', 'allitems', 'include', 'invert', 'ignore', 'total', 'goup', 'nodown', 'flood', 'reasons'];
+	var types = ['<?=implode("','", $types);?>'];
 	var url="";
 	var w=orig["w"].value;
 	var h=orig["h"].value;
@@ -349,7 +379,7 @@ function sub() {
 					url += "&" + lab + "=" +  encodeURIComponent(val);
 			}
 	}
-	alert(url.substring(1));
+	document.location="?" + url.substring(1);
 }
 
 </script>
