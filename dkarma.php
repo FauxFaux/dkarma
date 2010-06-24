@@ -396,14 +396,6 @@ if ($minkarma>0)
 $karmarange = $maxkarma-$minkarma;
 $timerange = $maxtime-$mintime;
 
-/*
-// Day in seconds.
-$daylength = 24 * 60 * 60;
-
-//foreach ($daystart as $day)
-//	echo "$day\n";
-*/
-
 // Image dimensions.
 $imw = @$_GET{'w'};
 $imh = @$_GET{'h'};
@@ -434,8 +426,6 @@ $subh = $imh - $bordertop - $borderbottom;
 
 $im = imagecreate($imw, $imh);
 $c = imagecolorallocate($im, 255,255,255);
-//imagesavealpha($im, true);
-#@imagefill($im, 0, 0, $c);
 
 $black = imagecolorallocate($im, 0,0,0);
 $grey = imagecolorallocate($im, 120,120,120);
@@ -449,13 +439,6 @@ for ($i=0; $i<min($numcols,$max_colours); $i++)
 	$rgb = hsv2rgb((1+$i)/min($numcols,$max_colours)*360, 1, 64);
 	$colour[] = imagecolorallocate($im, $rgb[0], $rgb[1], $rgb[2]);
 }
-
-//print_r($colour);
-
-/*
-if (count($imap) > count($colour))
-	die("programmer too lazy to make up enough colours");
-*/
 
 // assumes zero is always included.
 $zeroline = $bordertop + $subh * $maxkarma/$karmarange;
