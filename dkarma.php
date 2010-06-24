@@ -232,7 +232,8 @@ if (empty($imap))
 {
 ?>
 <html><head><title>dkarma</title></head><body>
-<form id="theform" name="pony" action="" method="get">
+<form id="actual" name="actual" action="" method="get"></form>
+<form id="fake" name="fake" action="" method="get" onsubmit="sub(); return false;">
 <p>
 <input type="submit"/>
 </p>
@@ -254,8 +255,6 @@ function input(type, name) {
 		if ('checkbox' == type && one.value != '')
 			one.checked = 'checked';
 	}
-	if (name == 'flood' && one.value == 0)
-		one.value=900;
 	one.id=name+total;
 	return one;
 }
@@ -294,7 +293,7 @@ function newu(rootul, head) {
 
 
 function addnew() {
-	var form = document.getElementById('theform');
+	var form = document.getElementById('fake');
 	var rootul = ul();
 	var u = newu(rootul, 'Item selection:');
 	var itemsinp = input('text', 'items');
@@ -308,7 +307,7 @@ function addnew() {
 	og(u, 'total', 'Only show one line; the total of all the items selected', 'checkbox');
 	og(u, 'goup', 'Pretend all karma is upwards (that\'ll be the day)', 'checkbox');
 	og(u, 'nodown', 'Ignore haters, only include positive karma', 'checkbox');
-	og(u, 'flood', 'Number of seconds of flood protection (>0)', 'text');
+	og(u, 'flood', 'Number of seconds of flood protection (>0, default: 900)', 'text');
 	og(u, 'reasons', 'Reasons are mandatory', 'checkbox');
 	form.appendChild(appret(document.createElement('p'), rootul));
 	++total;
@@ -316,6 +315,43 @@ function addnew() {
 
 for (var i = 0; i < Math.max(1, <?=$cnt?>); ++i)
 	addnew();
+
+function allsamefortype(orig, type) {
+	var b = orig[type + "[0]"].value;
+	for (var i = 1; i < total; ++i)
+		if (orig[type + "[" + i + "]"].value != b)
+			return false;
+	return true;
+}
+
+function sub() {
+	var orig = document.forms['fake'].elements;
+	var types = ['items', 'allitems', 'include', 'invert', 'ignore', 'total', 'goup', 'nodown', 'flood', 'reasons'];
+	var url="";
+	var w=orig["w"].value;
+	var h=orig["h"].value;
+	if (w != 1000)
+		url += "&w=" + w;
+	if (h != 500)
+		url += "&h=" + h;
+	for (var t in types) {
+		var type=types[t];
+		if (allsamefortype(orig, type))
+			if (orig[type + "[0]"].value == '')
+				continue;
+			else
+				url += "&" + type + "=" + encodeURIComponent(orig[type + "[0]"].value);
+		else
+			for (var i = 0; i < total; ++i) {
+				var lab = type + "[" + i + "]";
+				var val = orig[type + "[" + i + "]"].value;
+				if (val != '')
+					url += "&" + lab + "=" +  encodeURIComponent(val);
+			}
+	}
+	alert(url.substring(1));
+}
+
 </script>
 
 </body></html>
