@@ -301,7 +301,7 @@ function input(type, name) {
 	if (v != undefined)
 		if ('checkbox' == type)
 			one.checked = (v != '' ? 'checked' : '');
-		else
+		else 
 			one.value = v;
 
 	one.id=name+total;
@@ -365,11 +365,18 @@ function addnew() {
 for (var i = 0; i < Math.max(1, <?=$cnt?>); ++i)
 	addnew();
 
+function valu(el) {
+	if ('checkbox' == el.type) 
+		return el.checked ? 'on' : '';
+	return el.value;
+}
+
 function allsamefortype(orig, type) {
-	var b = orig[type + "[0]"].value;
+	var b = valu(orig[type + "[0]"]);
 	for (var i = 1; i < total; ++i)
-		if (orig[type + "[" + i + "]"].value != b)
+		if (valu(orig[type + "[" + i + "]"]) != b) {
 			return false;
+		}
 	return true;
 }
 
@@ -383,17 +390,18 @@ function sub() {
 		url += "&w=" + w;
 	if (h != 500)
 		url += "&h=" + h;
+
 	for (var t in types) {
 		var type=types[t];
 		if (allsamefortype(orig, type))
-			if (orig[type + "[0]"].value == '')
+			if (valu(orig[type + "[0]"]) == '')
 				continue;
 			else
-				url += "&" + type + "=" + encodeURIComponent(orig[type + "[0]"].value);
+				url += "&" + type + "=" + encodeURIComponent(valu(orig[type + "[0]"]));
 		else
 			for (var i = 0; i < total; ++i) {
 				var lab = type + "[" + i + "]";
-				var val = orig[type + "[" + i + "]"].value;
+				var val = valu(orig[type + "[" + i + "]"]);
 				if (val != '')
 					url += "&" + lab + "=" +  encodeURIComponent(val);
 			}
