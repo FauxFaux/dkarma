@@ -280,11 +280,23 @@ function input(type, name) {
 	var one = document.createElement('input');
 	one.type=type;
 	one.name=name + '[' + total + ']';
+	var v = undefined;
 	if (gut(name, total) != undefined) {
-		one.value=gut(name, total);
-		if ('checkbox' == type && one.value != '')
-			one.checked = 'checked';
-	}
+		v = gut(name, total);
+	} else
+		if (0 != total) {
+			var last=document.getElementById(name+(total-1));
+			if ('checkbox' == type)
+				v = last.checked;
+			else
+				v = last.value;
+		}
+	if (v != undefined)
+		if ('checkbox' == type)
+			one.checked = (v != '' ? 'checked' : '');
+		else
+			one.value = v;
+
 	one.id=name+total;
 	return one;
 }
