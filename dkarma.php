@@ -180,8 +180,8 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 		$query .= ' OR `Text` LIKE \'%' . $escapeds . '"++%\' OR `Text` LIKE \'%' . $escapeds . '"--%\'';
 	}
 
-	$goup = false; // not working
-	$nodown = isset($_GET{'nodown'});
+	$goup = $_GET{'goup'}; // not working
+	$nodown = $_GET{'nodown'};
 
 	if ($allitems)
 		$query .= ' OR 1';
@@ -239,7 +239,7 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 
 				$tim = $row['Time']/1000;
 				if ($tim - @$lasttim[$ds][$item] > get('flood',$ds))
-					$imap[(get('total',$ds) ? 'total' : $item) . $ds][] = array($tim, $direction);
+					$imap[(get('total',$ds) ? 'total' : $item) . ':' . $ds][] = array($tim, $direction);
 
 				@$lasttim[$ds][$item] = $tim;
 			}
@@ -421,14 +421,21 @@ foreach($imap as $imp)
 $minkarma = 999999999999;
 $maxkarma = -999999999999;
 
-foreach($imap as $imp)
+function ds_from_nam($nam) {
+	preg_match('/:(\d+)$/', $nam, $regs);
+	return $regs[1];
+}
+
+
+foreach($imap as $nam => $imp)
 {
+	$ds = ds_from_nam($nam);
 	$running = 0;
 	foreach ($imp as $inst)
 	{
-		if ($goup || $inst[1])
+		if (get('goup', $ds) || $inst[1])
 			$running++;
-		else if (!$nodown)
+		else if (!get('nodown', $ds))
 			$running--;
 
 		if ($running < $minkarma) $minkarma = $running;
@@ -496,13 +503,14 @@ $idx = 0;
 
 foreach($imap as $nam => $imp) // imp is an array(array(time, dir), , , );
 {
+	$ds = ds_from_nam($nam);
 	$running = 0;
 	$lastpos = array($borderleft, $zeroline);
 	foreach ($imp as $inst)
 	{
-		if ($goup || $inst[1])
+		if (get('goup',$ds) || $inst[1])
 			$running++;
-		else if (!$nodown)
+		else if (!get('nodown',$ds))
 			$running--;
 
 		$pos = array($borderleft + ($inst[0]-$mintime)/$timerange * $subw, $zeroline - $running/$karmarange * $subh);
