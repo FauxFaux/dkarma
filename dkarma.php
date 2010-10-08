@@ -254,9 +254,14 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 if (empty($imap))
 {
 ?>
+<?='<?'?>xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML Basic 1.1//EN"
+    "http://www.w3.org/TR/xhtml-basic/xhtml-basic11.dtd">
 <html><head><title>dkarma</title></head><body>
-<form id="actual" name="actual" action="" method="get"></form>
-<form id="fake" name="fake" action="" method="get" onsubmit="sub(); return false;">
+<form id="actual" action="" method="get">
+<div></div>
+</form>
+<form id="fake" action="" method="get" onsubmit="sub(); return false;">
 <p>
 <input type="submit"/>
 </p>
@@ -264,9 +269,11 @@ if (empty($imap))
 w and h: Width and height of the image: <input type="text" name="w" value="1000"/> x <input type="text" name="h" value="500"/>
 </p>
 </form>
+<p>
 <input type="button" onclick="addnew()" value="+"/> or <a href="?">destroy everything</a>.
-<noscript>Javascript is required for now.  Free-software, etc.</noscript>
-<script type="text/javascript">
+</p>
+<noscript><p>Javascript is required for now.  Free-software, etc.</p></noscript>
+<script type="text/javascript"><!--
 var get=<?=json_encode($_GET)?>;
 
 function gut(type, ds) {
@@ -394,7 +401,7 @@ function sub() {
 	document.location="?" + url.substring(1);
 }
 
-</script>
+//--></script>
 
 </body></html>
 <?php
