@@ -110,7 +110,7 @@ if (mysql_num_rows($result) != 0)
 else
 	gencache();
 
-$types = array('items', 'allitems', 'include', 'invert', 'ignore', 'total', 'goup', 'nodown', 'flood', 'reasons');
+$types = array('items', 'allitems', 'include', 'invert', 'ignore', 'chans', 'total', 'goup', 'nodown', 'flood', 'reasons');
 
 $cnt = 0; // number of graphs
 foreach ($types as $ty)
@@ -123,9 +123,12 @@ foreach ($types as $ty)
 ++$cnt;
 
 $ignore = array();
-for ($ds = 0; $ds < $cnt; ++$ds) 
+for ($ds = 0; $ds < $cnt; ++$ds) { 
 	foreach (explode('|', get('ignore', $ds)) as $ig)
 		@$ignore[$ds][strtolower(nicklink($ig))] = true;
+	foreach (explode('|', get('chans', $ds)) as $ch)
+		@$chans[$ds][strtolower($ch)] = true;
+}
 
 function array_flatten(array $array) {
 	$ret_array = array();
@@ -168,7 +171,15 @@ $allitems = anyset('allitems');
 
 if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 {
-	$query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where ';
+	$query = 'SELECT `Nick`,`Text`,`Time`';
+	$needchans = anyset('chans');
+	if ($needchans)
+		$query .= ',`Channel`';
+	$query .= ' FROM `' . $cache_table . '`';
+	if ($needchans)
+		$query .= ' INNER JOIN `History` USING (`Nick`,`Text`,`Time`)';
+
+	$query .= ' WHERE ';
 	
 	$since = 0;
 	$sincestr = $_GET{'since'};
@@ -205,7 +216,7 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 
 	$query .= ')';
 	
-	$result = mysql_query($query);
+	$result = mysql_query($query) or die(mysql_error());
 
 	mysql_num_rows($result) or die ("teh no results!");
 
@@ -218,6 +229,9 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 			$cleannick = strtolower(nicklink($row['Nick']));
 
 			if (@$ignore[$ds][$cleannick])
+				continue;
+
+			if ($needchans && @$chans[$ds][$row['Channel']])
 				continue;
 
 			preg_match_all('/' . $karmaPattern . '/', $row['Text'], $regs);
@@ -374,6 +388,7 @@ function addnew() {
 	og(u, 'include', 'Only include karma from nicks matching this regex (e.g. /Faux/)', 'text');
 	og(u, 'invert', 'Invert karma from nicks matching this regex (e.g. /Sraphim|bma/i)', 'text');
 	og(u, 'ignore', 'Pipe (|) seperated list of people to ignore karma from', 'text');
+	og(u, 'chans', 'Pipe (|) seperated list of channels to ignore karma from', 'text');
 	u = newu(rootul, 'Controls:');
 	og(u, 'total', 'Only show one line; the total of all the items selected', 'checkbox');
 	og(u, 'goup', 'Pretend all karma is upwards (that\'ll be the day)', 'checkbox');
