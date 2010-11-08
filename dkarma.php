@@ -168,7 +168,24 @@ $allitems = anyset('allitems');
 
 if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 {
-	$query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where `Text` LIKE "%me++%" OR `Text` LIKE "%me--%"';
+	$query = 'SELECT `Nick`,`Text`,`Time` from `' . $cache_table . '` where ';
+	
+	$since = 0;
+	$sincestr = $_GET{'since'};
+	$sincetotime = strtotime($sincestr);
+	if (FALSE !== $sincetotime)
+		$since = $sincetotime;
+	else {
+		$sinceint = (int)$sincestr;
+		if ($sinceint)
+			$since=time()-$sinceint;
+	}
+
+	if ($since)
+		$query .= '`Time` > ' . $since*1000 . ' AND ';
+
+	$query .= '(';
+	$query .= '`Text` LIKE "%me++%" OR `Text` LIKE "%me--%"';
 
 	foreach ($items as $item)
 	{
@@ -186,6 +203,8 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 	if ($allitems)
 		$query .= ' OR 1';
 
+	$query .= ')';
+	
 	$result = mysql_query($query);
 
 	mysql_num_rows($result) or die ("teh no results!");
@@ -267,6 +286,9 @@ if (empty($imap))
 </p>
 <p>
 w and h: Width and height of the image: <input type="text" name="w" value="1000"/> x <input type="text" name="h" value="500"/>
+</p>
+<p>
+since: empty for call, yyyy-mm-dd date or integer number of seconds old: <input type="text" name="since" value="<?=$_GET{'since'}?>"/>
 </p>
 </form>
 <p>
@@ -387,9 +409,12 @@ function sub() {
 	var w=orig["w"].value;
 	var h=orig["h"].value;
 	if (w != 1000)
-		url += "&w=" + w;
+		url += "&w=" + encodeURIComponent(w);
 	if (h != 500)
-		url += "&h=" + h;
+		url += "&h=" + encodeURIComponent(h);
+	var since=orig["since"].value;
+	if (since != '')
+		url += "&since=" + encodeURIComponent(since);
 
 	for (var t in types) {
 		var type=types[t];
