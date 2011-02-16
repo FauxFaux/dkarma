@@ -302,7 +302,7 @@ if (empty($imap))
 w and h: Width and height of the image: <input type="text" name="w" value="1000"/> x <input type="text" name="h" value="500"/>
 </p>
 <p>
-since: empty for call, yyyy-mm-dd date or integer number of seconds old: <input type="text" name="since" value="<?=$_GET{'since'}?>"/>
+since: empty for all, yyyy-mm-dd date or integer number of seconds old: <input type="text" name="since" value="<?=$_GET{'since'}?>"/>
 </p>
 </form>
 <p>
