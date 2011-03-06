@@ -298,7 +298,7 @@ if (empty($imap))
 </form>
 <form id="fake" action="" method="get" onsubmit="sub(); return false;">
 <p>
-<input type="submit"/>
+<input type="submit"/> - <a href="http://git.goeswhere.com/?p=dkarma.git;a=summary">source</a>
 </p>
 <p>
 w and h: Width and height of the image: <input type="text" name="w" value="1000"/> x <input type="text" name="h" value="500"/>
