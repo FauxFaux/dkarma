@@ -1,4 +1,6 @@
 <?
+/** Pick any BSD/MIT style license.  http://git.goeswhere.com/?p=dkarma.git;a=summary */
+
 ini_set('memory_limit', '9001M');
 $cache_table = '_dkarma_cache';
 
