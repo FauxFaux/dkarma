@@ -274,12 +274,13 @@ if (!isset($_GET{'show'}) && ($items != array("") || $allitems))
 
 				$tim = $row['Time']/1000;
 				if ($tim - @$lasttim[$ds][$item] > get('flood',$ds))
-					$imap[(get('total',$ds) ? 'total' : $item) . ':' . $ds][] = array($tim, $direction);
+					$imap[(get('total',$ds) ? 'total' : $item) . ':' . $ds][] = ($direction ? 1 : -1) * $tim;
 
 				@$lasttim[$ds][$item] = $tim;
 			}
 		}
 	}
+	mysql_free_result($result);
 } else
 	$imap = array();
 
@@ -460,13 +461,12 @@ die();
 
 $mintime = time();
 $maxtime = 0;
-
 foreach($imap as $imp)
 	foreach ($imp as $inst)
-		if ($inst[0] < $mintime)
-			$mintime = $inst[0];
-		else if ($inst[0] > $maxtime)
-			$maxtime = $inst[0];
+		if (abs($inst) < $mintime)
+			$mintime = abs($inst);
+		else if (abs($inst) > $maxtime)
+			$maxtime = abs($inst);
 
 $minkarma = 999999999999;
 $maxkarma = -999999999999;
@@ -483,7 +483,7 @@ foreach($imap as $nam => $imp)
 	$running = 0;
 	foreach ($imp as $inst)
 	{
-		if (get('goup', $ds) || $inst[1])
+		if (get('goup', $ds) || ($inst > 0))
 			$running++;
 		else if (!get('nodown', $ds))
 			$running--;
@@ -558,12 +558,12 @@ foreach($imap as $nam => $imp) // imp is an array(array(time, dir), , , );
 	$lastpos = array($borderleft, $zeroline);
 	foreach ($imp as $inst)
 	{
-		if (get('goup',$ds) || $inst[1])
+		if (get('goup',$ds) || $inst>0)
 			$running++;
 		else if (!get('nodown',$ds))
 			$running--;
 
-		$pos = array($borderleft + ($inst[0]-$mintime)/$timerange * $subw, $zeroline - $running/$karmarange * $subh);
+		$pos = array($borderleft + (abs($inst)-$mintime)/$timerange * $subw, $zeroline - $running/$karmarange * $subh);
 
 		imageline($im, $lastpos[0], $lastpos[1], $pos[0], $pos[1], $colour[$idx%$max_colours]);
 		$lastpos = $pos;
